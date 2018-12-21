@@ -1,8 +1,8 @@
 # copy-pasted from https://packages.altlinux.org/en/Sisyphus/srpms/openssl10/spec
 
-Name: openssl-unsafe
+Name: openssl10-unsafe
 Version: 1.0.2i
-Release: alt1
+Release: alt2
 
 Summary: OpenSSL - Secure Sockets Layer and cryptography shared libraries and tools, UNSAFE VERSION!
 License: BSD-style
@@ -38,47 +38,47 @@ Patch87: openssl-rh-cc-reqs.patch
 Patch90: openssl-rh-enc-fail.patch
 Patch92: openssl-rh-system-cipherlist.patch
 
-Patch100: unsafeopenssl-alt-hardcode-path.patch
+Patch100: openssl-unsafe-rename.patch
 
 %define shlib_soversion 10
-%define openssldir /opt/unsafeopenssl/var/lib/ssl
+%define openssldir /var/lib/unsafessl
 
 BuildRequires: /usr/bin/pod2man bc zlib-devel
 
-%package -n unsafelibcrypto%shlib_soversion
+%package -n libunsafecrypto%shlib_soversion
 Summary: OpenSSL libcrypto shared library, UNSAFE VERSION!
 Group: System/Libraries
-Provides: unsafelibcrypto = %version-%release
+Provides: libunsafecrypto = %version-%release
 Requires: ca-certificates
 
-%package -n unsafelibssl%shlib_soversion
+%package -n libunsafessl%shlib_soversion
 Summary: OpenSSL libssl shared library, UNSAFE VERSION!
 Group: System/Libraries
-Provides: unsafelibssl = %version
-Requires: unsafelibcrypto%shlib_soversion = %version-%release
+Provides: libunsafessl = %version
+Requires: libunsafecrypto%shlib_soversion = %version-%release
 
-%package -n unsafelibssl-devel
+%package -n libunsafessl-devel
 Summary: OpenSSL include files and development libraries, UNSAFE VERSION!
 Group: Development/C
-Provides: unsafeopenssl-devel = %version
-Requires: unsafelibssl%shlib_soversion = %version-%release
+Provides: openssl-unsafe-devel = %version
+Requires: libunsafessl%shlib_soversion = %version-%release
 
-%package -n unsafelibssl-devel-static
+%package -n libunsafessl-devel-static
 Summary: OpenSSL static libraries, UNSAFE VERSION!
 Group: Development/C
-Provides: unsafeopenssl-devel-static = %version
-Requires: unsafelibssl-devel = %version-%release
+Provides: openssl-unsafe-devel-static = %version
+Requires: libunsafessl-devel = %version-%release
 
-%package -n unsafeopenssl
+%package -n openssl-unsafe
 Summary: OpenSSL tools, UNSAFE VERSION!
 Group: System/Base
 Provides: %openssldir
-Requires: unsafelibssl%shlib_soversion = %version-%release
+Requires: libunsafessl%shlib_soversion = %version-%release
 
-%package -n unsafeopenssl-doc
+%package -n openssl-unsafe-doc
 Summary: OpenSSL documentation and demos, UNSAFE VERSION!
 Group: Development/C
-Requires: unsafeopenssl = %version-%release
+Requires: openssl-unsafe = %version-%release
 BuildArch: noarch
 
 %description
@@ -89,7 +89,7 @@ protocols.
 
 UNSAFE VERSION!
 
-%description -n unsafelibcrypto%shlib_soversion
+%description -n libunsafecrypto%shlib_soversion
 The OpenSSL toolkit provides support for secure communications between
 machines. OpenSSL includes a certificate management tool and shared
 libraries which provide various cryptographic algorithms and
@@ -99,7 +99,7 @@ This package contains the OpenSSL libcrypto shared library.
 
 UNSAFE VERSION!
 
-%description -n unsafelibssl%shlib_soversion
+%description -n libunsafessl%shlib_soversion
 The OpenSSL toolkit provides support for secure communications between
 machines. OpenSSL includes a certificate management tool and shared
 libraries which provide various cryptographic algorithms and
@@ -109,7 +109,7 @@ This package contains the OpenSSL libssl shared library.
 
 UNSAFE VERSION!
 
-%description -n unsafelibssl-devel
+%description -n libunsafessl-devel
 The OpenSSL toolkit provides support for secure communications between
 machines. OpenSSL includes a certificate management tool and shared
 libraries which provide various cryptographic algorithms and
@@ -120,7 +120,7 @@ required when building OpenSSL-based applications.
 
 UNSAFE VERSION!
 
-%description -n unsafelibssl-devel-static
+%description -n libunsafessl-devel-static
 The OpenSSL toolkit provides support for secure communications between
 machines. OpenSSL includes a certificate management tool and shared
 libraries which provide various cryptographic algorithms and
@@ -131,7 +131,7 @@ OpenSSL-based statically linked applications.
 
 UNSAFE VERSION!
 
-%description -n unsafeopenssl
+%description -n openssl-unsafe
 The OpenSSL toolkit provides support for secure communications between
 machines. OpenSSL includes a certificate management tool and shared
 libraries which provide various cryptographic algorithms and
@@ -141,7 +141,7 @@ This package contains the base OpenSSL cryptography and SSL/TLS tools.
 
 UNSAFE VERSION!
 
-%description -n unsafeopenssl-doc
+%description -n openssl-unsafe-doc
 The OpenSSL toolkit provides support for secure communications between
 machines. OpenSSL includes a certificate management tool and shared
 libraries which provide various cryptographic algorithms and
@@ -226,17 +226,31 @@ if echo 'extern __uint128_t i;' |
 fi
 
 ./Configure shared \
-	--prefix=/opt/unsafeopenssl/usr \
+	--prefix=%prefix \
 	--libdir=%_lib \
 	--openssldir=%openssldir \
-	--enginesdir=/opt/unsafeopenssl/%_libdir/openssl/engines \
-	--system-ciphers-file=/opt/unsafeopenssl/%_sysconfdir/openssl/cipher-list.conf \
+	--enginesdir=%_libdir/openssl-unsafe/engines \
+	--system-ciphers-file=%_sysconfdir/openssl-unsafe/cipher-list.conf \
 	enable-md2 \
 	enable-rfc3779 \
 	enable-ssl2 \
 	zlib \
     enable-ssl2 enable-ssl3 enable-ssl3-method enable-weak-ssl-ciphers \
 	$ADD_ARGS
+
+# rename shared libraries
+find . -name 'Makefile' -exec sed -i -e 's/libcrypto/libunsafecrypto/g' {} \;
+find . -name 'Makefile' -exec sed -i -e 's/libssl/libunsafessl/g' {} \;
+find . -name 'Makefile' -exec sed -i -e 's/openssl.pc/openssl-unsafe.pc/g' {} \;
+find . -name 'Makefile' -exec sed -i -e 's/LIBNAME=$$i/LIBNAME=unsafe$$i/g' {} \;
+find . -name 'Makefile' -exec sed -i -e 's/-l$$i/-lunsafe$$i/g' {} \;
+find . -name 'Makefile' -exec sed -i -e 's/-lcrypto/-lunsafecrypto/g' {} \;
+find . -name 'Makefile' -exec sed -i -e 's/-lssl/-lunsafessl/g' {} \;
+find . -name 'shlib_wrap.sh' -exec sed -i -e 's/libcrypto.so/libunsafecrypto.so/g' {} \;
+find . -name 'shlib_wrap.sh' -exec sed -i -e 's/libssl.so/libunsafessl.so/g' {} \;
+find . -name 'Makefile' -exec sed -i -e 's/Name: OpenSSL-libcrypto/Name: OpenSSLUnsafe-libcrypto/g' {} \;
+find . -name 'Makefile' -exec sed -i -e 's/Name: OpenSSL-libssl/Name: OpenSSLUnsafe-libssl/g' {} \;
+find . -name 'Makefile' -exec sed -i -e 's/Name: OpenSSL/Name: OpenSSLUnsafe/g' {} \;
 
 # SMP-incompatible build.
 make
@@ -245,8 +259,8 @@ make
 /sbin/ldconfig -nv .
 
 # Save library timestamps for later check.
-touch -r libcrypto.so.%version libcrypto-stamp
-touch -r libssl.so.%version libssl-stamp
+touch -r libunsafecrypto.so.%version libunsafecrypto-stamp
+touch -r libunsafessl.so.%version libunsafessl-stamp
 
 LD_LIBRARY_PATH=`pwd` make rehash
 
@@ -255,36 +269,36 @@ LD_LIBRARY_PATH=`pwd` make rehash
 make install \
 	CC=%_sourcedir/cc.sh \
 	INSTALL_PREFIX=%buildroot \
-	MANDIR=/opt/unsafeopenssl/%_mandir
+	MANDIR=%_mandir
 
 # Fail if one of shared libraries was rebuit.
-if [ libcrypto.so.%version -nt libcrypto-stamp -o \
-     libssl.so.%version -nt libssl-stamp ]; then
+if [ libunsafecrypto.so.%version -nt libunsafecrypto-stamp -o \
+     libunsafessl.so.%version -nt libunsafessl-stamp ]; then
 	echo 'Shared library was rebuilt by "make install".'
 	exit 1
 fi
 
 # Fail if the openssl binary is statically linked against OpenSSL at this
 # stage (which could happen if "make install" caused anything to rebuild).
-LD_LIBRARY_PATH=`pwd` ldd %buildroot/opt/unsafeopenssl%_bindir/openssl |tee openssl.libs
-grep -qw libssl openssl.libs
-grep -qw libcrypto openssl.libs
+LD_LIBRARY_PATH=`pwd` ldd %buildroot%_bindir/openssl-unsafe |tee openssl.libs
+grep -qw libunsafessl openssl.libs
+grep -qw libunsafecrypto openssl.libs
 
 # Relocate shared libraries from %_libdir/ to /lib/.
-mkdir -p %buildroot{/opt/unsafeopenssl/%_lib,/opt/unsafeopenssl%_libdir/openssl,/opt/unsafeopenssl%_sbindir}
-for f in %buildroot/opt/unsafeopenssl%_libdir/*.so; do
+mkdir -p %buildroot{/%_lib,%_libdir/openssl-unsafe,%_sbindir}
+for f in %buildroot%_libdir/*.so; do
 	t=$(readlink "$f") || continue
 	ln -snf ../../%_lib/"$t" "$f"
 done
-mv %buildroot/opt/unsafeopenssl%_libdir/*.so.* %buildroot/opt/unsafeopenssl/%_lib/
+mv %buildroot%_libdir/*.so.* %buildroot/%_lib/
 
 # Relocate engines.
-mv %buildroot/opt/unsafeopenssl%_libdir/engines %buildroot/opt/unsafeopenssl%_libdir/openssl/
+mv %buildroot%_libdir/engines %buildroot%_libdir/openssl-unsafe/
 
 # Relocate openssl.cnf from %%openssldir/ to %_sysconfdir/openssl/.
-mkdir -p %buildroot/opt/unsafeopenssl%_sysconfdir/openssl
-mv %buildroot%openssldir/openssl.cnf %buildroot/opt/unsafeopenssl%_sysconfdir/openssl/
-ln -s -r %buildroot/opt/unsafeopenssl%_sysconfdir/openssl/openssl.cnf %buildroot%openssldir/
+mkdir -p %buildroot%_sysconfdir/openssl-unsafe
+mv %buildroot%openssldir/openssl.cnf %buildroot%_sysconfdir/openssl-unsafe/
+ln -s -r %buildroot%_sysconfdir/openssl-unsafe/openssl.cnf %buildroot%openssldir/
 
 ln -s -r %buildroot%_datadir/ca-certificates/ca-bundle.crt \
 	%buildroot%openssldir/cert.pem
@@ -292,51 +306,67 @@ ln -s -r %buildroot%_datadir/ca-certificates/ca-bundle.crt \
 mv %buildroot%openssldir/misc/CA{.sh,}
 rm %buildroot%openssldir/misc/CA.pl
 
-%define docdir %_docdir/openssl-%version
-mkdir -p %buildroot/opt/unsafeopenssl%docdir
+%define docdir %_docdir/openssl-unsafe-%version
+mkdir -p %buildroot%docdir
 install -pm644 CHANGES* LICENSE NEWS README* engines/ccgost/README.gost \
-	%buildroot/opt/unsafeopenssl%docdir/
-bzip2 -9 %buildroot/opt/unsafeopenssl%docdir/CHANGES*
-cp -a demos doc %buildroot/opt/unsafeopenssl%docdir/
-rm -rf %buildroot/opt/unsafeopenssl%docdir/doc/{apps,crypto,ssl}
+	%buildroot%docdir/
+bzip2 -9 %buildroot%docdir/CHANGES*
+#cp -a demos doc %buildroot%docdir/
+rm -rf %buildroot%docdir/doc/{apps,crypto,ssl}
+
+# we do not need these binaries
+rm -f %buildroot%openssldir/misc/tsget
+rm -f %buildroot%_bindir/c_rehash
+
+# we do not need man pages
+rm -rf %buildroot%_mandir
+
+# we do not need engines
+rm -rf %buildroot%_libdir/openssl-unsafe/engines
+
+# rename include directory
+mv %buildroot%_includedir/openssl{,-unsafe}
+
+# fix include paths in the renamed include directory
+find %buildroot%_includedir/openssl-unsafe -name '*.h' -exec sed -i -e 's/<openssl\//<openssl-unsafe\//g' {} \;
 
 # Create default cipher-list.conf from SSL_DEFAULT_CIPHER_LIST
 sed -n -r 's,^#.*SSL_DEFAULT_CIPHER_LIST[[:space:]]+"([^"]+)",\1,p' \
-	ssl/ssl.h > %buildroot/opt/unsafeopenssl%_sysconfdir/openssl/cipher-list.conf
+	ssl/ssl.h > %buildroot%_sysconfdir/openssl-unsafe/cipher-list.conf
 
-rm -f %buildroot%openssldir/misc/tsget
-
-%files -n unsafelibcrypto%shlib_soversion
-/opt/unsafeopenssl/%_lib/libcrypto*
-%config(noreplace) /opt/unsafeopenssl%_sysconfdir/openssl/openssl.cnf
-%dir /opt/unsafeopenssl%_sysconfdir/openssl/
+%files -n libunsafecrypto%shlib_soversion
+/%_lib/libunsafecrypto*
+%config(noreplace) %_sysconfdir/openssl-unsafe/openssl.cnf
+%dir %_sysconfdir/openssl-unsafe/
 %dir %openssldir
 %openssldir/*.cnf
 %openssldir/*.pem
-%dir /opt/unsafeopenssl%docdir
-/opt/unsafeopenssl%docdir/[A-Z]*
+%dir %docdir
+%docdir/[A-Z]*
 
-%files -n unsafelibssl%shlib_soversion
-%config(noreplace) /opt/unsafeopenssl%_sysconfdir/openssl/cipher-list.conf
-%dir /opt/unsafeopenssl%_sysconfdir/openssl/
-/opt/unsafeopenssl/%_lib/libssl*
+%files -n libunsafessl%shlib_soversion
+%config(noreplace) %_sysconfdir/openssl-unsafe/cipher-list.conf
+%dir %_sysconfdir/openssl-unsafe/
+/%_lib/libunsafessl*
 
-%files -n unsafelibssl-devel
-/opt/unsafeopenssl%_libdir/*.so
-/opt/unsafeopenssl%_libdir/pkgconfig/*
-/opt/unsafeopenssl%_includedir/*
+%files -n libunsafessl-devel
+%_libdir/*.so
+%_libdir/pkgconfig/*
+%_includedir/*
 
-%files -n unsafelibssl-devel-static
-/opt/unsafeopenssl%_libdir/*.a
+%files -n libunsafessl-devel-static
+%_libdir/*.a
 
-%files -n unsafeopenssl
-/opt/unsafeopenssl%_bindir/*
+%files -n openssl-unsafe
+%_bindir/*
 %dir %openssldir
 %openssldir/misc
 %openssldir/certs
 %dir %attr(700,root,root) %openssldir/private
-/opt/unsafeopenssl%_mandir/man[157]/*
 
 %changelog
+* Thu Dec 20 2018 Pavel Nakonechnyi <pavel@gremwell.com> 1.0.2i-alt2
+- packages and libraries renamed, files moved to follow FHS
+
 * Mon May 14 2018 Pavel Nakonechnyi <pavel@gremwell.com> 1.0.2i-alt1
 - Initial build based on 1.0.2i
