@@ -7,9 +7,9 @@ diff -up openssl-1.0.2a/apps/s_apps.h.ipv6-apps openssl-1.0.2a/apps/s_apps.h
  
 -int do_server(int port, int type, int *ret,
 +int do_server(char *port, int type, int *ret,
-               int (*cb) (char *hostname, int s, int stype,
-                          unsigned char *context), unsigned char *context,
-               int naccept);
+               int (*cb) (int s, int stype, unsigned char *context),
+               unsigned char *context, int naccept);
+ #ifdef HEADER_X509_H
 @@ -167,11 +167,10 @@ int ssl_print_point_formats(BIO *out, SS
  int ssl_print_curves(BIO *out, SSL *s, int noshared);
  #endif
@@ -111,7 +111,7 @@ diff -up openssl-1.0.2a/apps/s_socket.c.ipv6-apps openssl-1.0.2a/apps/s_socket.c
 -static int init_server(int *sock, int port, int type);
 -static int init_server_long(int *sock, int port, char *ip, int type);
 +static int init_server(int *sock, char *port, int type);
- static int do_accept(int acc_sock, int *sock, char **host);
+ static int do_accept(int acc_sock, int *sock);
  static int host_ip(char *str, unsigned char ip[4]);
  
 @@ -231,65 +229,66 @@ static int ssl_sock_init(void)
@@ -123,7 +123,7 @@ diff -up openssl-1.0.2a/apps/s_socket.c.ipv6-apps openssl-1.0.2a/apps/s_socket.c
  {
 -    unsigned char ip[4];
 -
--    memset(ip, '\0', sizeof ip);
+-    memset(ip, '\0', sizeof(ip));
 -    if (!host_ip(host, &(ip[0])))
 -        return 0;
 -    return init_client_ip(sock, ip, port, type);
@@ -224,10 +224,10 @@ diff -up openssl-1.0.2a/apps/s_socket.c.ipv6-apps openssl-1.0.2a/apps/s_socket.c
  
 -int do_server(int port, int type, int *ret,
 +int do_server(char *port, int type, int *ret,
-               int (*cb) (char *hostname, int s, int stype,
-                          unsigned char *context), unsigned char *context,
-               int naccept)
-@@ -328,69 +327,89 @@ int do_server(int port, int type, int *r
+               int (*cb) (int s, int stype, unsigned char *context),
+               unsigned char *context, int naccept)
+ {
+@@ -323,62 +323,82 @@
      }
  }
  
@@ -290,12 +290,12 @@ diff -up openssl-1.0.2a/apps/s_socket.c.ipv6-apps openssl-1.0.2a/apps/s_socket.c
 +        }
 +        if (hints.ai_family == AF_INET6) {
 +            int j = 0;
-+            setsockopt(s, IPPROTO_IPV6, IPV6_V6ONLY, (void *)&j, sizeof j);
++            setsockopt(s, IPPROTO_IPV6, IPV6_V6ONLY, (void *)&j, sizeof(j));
 +        }
  # if defined SOL_SOCKET && defined SO_REUSEADDR
 -    {
 -        int j = 1;
--        setsockopt(s, SOL_SOCKET, SO_REUSEADDR, (void *)&j, sizeof j);
+-        setsockopt(s, SOL_SOCKET, SO_REUSEADDR, (void *)&j, sizeof(j));
 -    }
 -# endif
 -    if (bind(s, (struct sockaddr *)&server, sizeof(server)) == -1) {
@@ -303,7 +303,7 @@ diff -up openssl-1.0.2a/apps/s_socket.c.ipv6-apps openssl-1.0.2a/apps/s_socket.c
 -        perror("bind");
 +        {
 +            int j = 1;
-+            setsockopt(s, SOL_SOCKET, SO_REUSEADDR, (void *)&j, sizeof j);
++            setsockopt(s, SOL_SOCKET, SO_REUSEADDR, (void *)&j, sizeof(j));
 +        }
  # endif
 -        goto err;
@@ -354,71 +354,9 @@ diff -up openssl-1.0.2a/apps/s_socket.c.ipv6-apps openssl-1.0.2a/apps/s_socket.c
 +    return (0);
  }
  
- static int do_accept(int acc_sock, int *sock, char **host)
- {
-+    static struct sockaddr_storage from;
-+    char buffer[NI_MAXHOST];
-     int ret;
--    struct hostent *h1, *h2;
--    static struct sockaddr_in from;
-     int len;
- /*      struct linger ling; */
- 
-@@ -432,134 +451,60 @@ static int do_accept(int acc_sock, int *
-     ling.l_onoff=1;
-     ling.l_linger=0;
-     i=setsockopt(ret,SOL_SOCKET,SO_LINGER,(char *)&ling,sizeof(ling));
--    if (i < 0) { perror("linger"); return(0); }
-+    if (i < 0) { closesocket(ret); perror("linger"); return(0); }
-     i=0;
-     i=setsockopt(ret,SOL_SOCKET,SO_KEEPALIVE,(char *)&i,sizeof(i));
--    if (i < 0) { perror("keepalive"); return(0); }
-+    if (i < 0) { closesocket(ret); perror("keepalive"); return(0); }
- */
- 
-     if (host == NULL)
-         goto end;
--# ifndef BIT_FIELD_LIMITS
--    /* I should use WSAAsyncGetHostByName() under windows */
--    h1 = gethostbyaddr((char *)&from.sin_addr.s_addr,
--                       sizeof(from.sin_addr.s_addr), AF_INET);
--# else
--    h1 = gethostbyaddr((char *)&from.sin_addr,
--                       sizeof(struct in_addr), AF_INET);
--# endif
--    if (h1 == NULL) {
--        BIO_printf(bio_err, "bad gethostbyaddr\n");
-+
-+    if (getnameinfo((struct sockaddr *)&from, sizeof(from),
-+                    buffer, sizeof(buffer), NULL, 0, 0)) {
-+        BIO_printf(bio_err, "getnameinfo failed\n");
-         *host = NULL;
-         /* return(0); */
-     } else {
--        if ((*host = (char *)OPENSSL_malloc(strlen(h1->h_name) + 1)) == NULL) {
-+        if ((*host = (char *)OPENSSL_malloc(strlen(buffer) + 1)) == NULL) {
-             perror("OPENSSL_malloc");
-             closesocket(ret);
-             return (0);
-         }
--        BUF_strlcpy(*host, h1->h_name, strlen(h1->h_name) + 1);
--
--        h2 = GetHostByName(*host);
--        if (h2 == NULL) {
--            BIO_printf(bio_err, "gethostbyname failure\n");
--            closesocket(ret);
--            return (0);
--        }
--        if (h2->h_addrtype != AF_INET) {
--            BIO_printf(bio_err, "gethostbyname addr is not AF_INET\n");
--            closesocket(ret);
--            return (0);
--        }
-+        strcpy(*host, buffer);
-     }
-  end:
-     *sock = ret;
-     return (1);
+ static int do_accept(int acc_sock, int *sock)
+@@ -421,89 +441,33 @@
+     return 1;
  }
  
 -int extract_host_port(char *str, char **host_ptr, unsigned char *ip,
