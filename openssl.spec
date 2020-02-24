@@ -1,8 +1,8 @@
 # copy-pasted from https://packages.altlinux.org/en/Sisyphus/srpms/openssl10/spec
 
 Name: openssl10-unsafe
-Version: 1.0.2i
-Release: alt2
+Version: 1.0.2u
+Release: alt1
 
 Summary: OpenSSL - Secure Sockets Layer and cryptography shared libraries and tools, UNSAFE VERSION!
 License: BSD-style
@@ -176,7 +176,7 @@ UNSAFE VERSION!
 
 %patch24 -p1
 
-%patch25 -p1
+#%patch25 -p1
 %patch27 -p1
 %patch84 -p1
 %patch87 -p1
@@ -365,6 +365,9 @@ sed -n -r 's,^#.*SSL_DEFAULT_CIPHER_LIST[[:space:]]+"([^"]+)",\1,p' \
 %dir %attr(700,root,root) %openssldir/private
 
 %changelog
+* Mon Feb 24 2020 Pavel Nakonechnyi <pavel@gremwell.com> 1.0.2u-alt1
+- updated to 1.0.2u version
+
 * Thu Dec 20 2018 Pavel Nakonechnyi <pavel@gremwell.com> 1.0.2i-alt2
 - packages and libraries renamed, files moved to follow FHS
 
